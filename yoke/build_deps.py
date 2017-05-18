@@ -6,9 +6,11 @@ from tempfile import mkstemp
 import time
 
 import docker
+import docker.errors
 
 from .templates import DOCKER_BUILD_SCRIPT
 from .templates import DOCKER_INSTALL_SCRIPT
+from yoke import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -20,6 +22,10 @@ PYTHON_VERSION_MAP = {
     'python3.6': 'cp36-cp36m',
 }
 STATUS_EXITED = 'exited'
+DOCKER_CONN_REFUSED = (
+    "Error while fetching server API version: ('Connection aborted.', "
+    "error(61, 'Connection refused'))"
+)
 
 
 def wait_for_container_to_finish(container):
@@ -140,8 +146,16 @@ class PythonDependencyBuilder(object):
         try:
             # Allow connecting to older Docker versions (e.g. CircleCI 1.0)
             client = docker.from_env(version='auto')
-        except:
-            LOG.error("Docker is not running, or it's outdated.")
+        except docker.errors.DockerException as docker_error:
+            LOG.exception("Docker is not running, or it's outdated.")
+            if str(docker_error) == DOCKER_CONN_REFUSED:
+                raise utils.YokeException(
+                    'Unable to connect to Docker daemon. Is Docker running?'
+                )
+            else:
+                raise
+        except Exception as err:
+            LOG.exception('Unexpected error connecting to Docker daemon.')
             raise
 
         # Build dependencies

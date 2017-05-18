@@ -8,6 +8,10 @@ import ruamel.yaml as yaml
 LOG = logging.getLogger(__name__)
 
 
+class YokeException(Exception):
+    """Exception class for raising yoke-specific errors."""
+
+
 def check_encryption_required_fields(stage):
     for field in ['keyRegion', 'keyName']:
         if field not in stage:
